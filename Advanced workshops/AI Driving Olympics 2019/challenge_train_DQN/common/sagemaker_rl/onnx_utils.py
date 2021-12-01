@@ -50,9 +50,7 @@ def ppo_continuous_outputs(model):
     policy_head_mean = make_output(policy_head_mean_name, shape=(num_actions,))
     policy_head_std_name = "generalmodel0_singlemodel1_scaledgradhead0_continuousppohead0_broadcast_mul0"
     policy_head_std = make_output(policy_head_std_name, shape=(num_actions,))
-    # collect outputs
-    output_nodes = [value_head, policy_head_mean, policy_head_std]
-    return output_nodes
+    return [value_head, policy_head_mean, policy_head_std]
 
 
 def ppo_discrete_outputs(model):
@@ -68,9 +66,7 @@ def ppo_discrete_outputs(model):
     value_head = make_output(value_head_name, shape=(1,))
     policy_head_name = "generalmodel0_singlemodel1_scaledgradhead0_discreteppohead0_softmax0"
     policy_head = make_output(policy_head_name, shape=(num_actions,))
-    # collect outputs
-    output_nodes = [value_head, policy_head]
-    return output_nodes
+    return [value_head, policy_head]
 
 
 def save_model(model, output_nodes, filepath):

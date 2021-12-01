@@ -54,33 +54,33 @@ class ExperimentDbClient(object):
         '''
         self.table_session.update_item(
             Key={'experiment_id': experiment_id},
-            UpdateExpression=f'SET training_workflow_metadata = :new_val',
+            UpdateExpression='SET training_workflow_metadata = :new_val',
             ConditionExpression='training_workflow_metadata.next_model_to_train_id = :exp_model_id',
             ExpressionAttributeValues={
                 ':new_val': training_workflow_metadata,
-                ':exp_model_id': expected_current_next_model_to_train_id
-                }
+                ':exp_model_id': expected_current_next_model_to_train_id,
+            },
         )
 
     def update_experiment_training_state(self, experiment_id, training_state):
         self.table_session.update_item(
             Key={'experiment_id': experiment_id},
-            UpdateExpression=f'SET training_workflow_metadata.training_state = :val',
-            ExpressionAttributeValues={':val': training_state}
+            UpdateExpression='SET training_workflow_metadata.training_state = :val',
+            ExpressionAttributeValues={':val': training_state},
         )
 
     def update_experiment_last_trained_model_id(self, experiment_id, last_trained_model_id):
         self.table_session.update_item(
             Key={'experiment_id': experiment_id},
-            UpdateExpression=f'SET training_workflow_metadata.last_trained_model_id = :val',
-            ExpressionAttributeValues={':val': last_trained_model_id}
+            UpdateExpression='SET training_workflow_metadata.last_trained_model_id = :val',
+            ExpressionAttributeValues={':val': last_trained_model_id},
         )
 
     def update_experiment_next_model_to_train_id(self, experiment_id, next_model_to_train_id):
         self.table_session.update_item(
             Key={'experiment_id': experiment_id},
-            UpdateExpression=f'SET training_workflow_metadata.next_model_to_train_id = :val',
-            ExpressionAttributeValues={':val': next_model_to_train_id}
+            UpdateExpression='SET training_workflow_metadata.next_model_to_train_id = :val',
+            ExpressionAttributeValues={':val': next_model_to_train_id},
         )
 
     ####  Update states for hosting workflow
@@ -88,29 +88,29 @@ class ExperimentDbClient(object):
     def update_experiment_hosting_state(self, experiment_id, hosting_state):
         self.table_session.update_item(
             Key={'experiment_id': experiment_id},
-            UpdateExpression=f'SET hosting_workflow_metadata.hosting_state = :val',
-            ExpressionAttributeValues={':val': hosting_state}
+            UpdateExpression='SET hosting_workflow_metadata.hosting_state = :val',
+            ExpressionAttributeValues={':val': hosting_state},
         )
 
     def update_experiment_last_hosted_model_id(self, experiment_id, last_hosted_model_id):
         self.table_session.update_item(
             Key={'experiment_id': experiment_id},
-            UpdateExpression=f'SET hosting_workflow_metadata.last_hosted_model_id = :val',
-            ExpressionAttributeValues={':val': last_hosted_model_id}
+            UpdateExpression='SET hosting_workflow_metadata.last_hosted_model_id = :val',
+            ExpressionAttributeValues={':val': last_hosted_model_id},
         )
 
     def update_experiment_next_model_to_host_id(self, experiment_id, next_model_to_host_id):
         self.table_session.update_item(
             Key={'experiment_id': experiment_id},
-            UpdateExpression=f'SET hosting_workflow_metadata.next_model_to_host_id = :val',
-            ExpressionAttributeValues={':val': next_model_to_host_id}
+            UpdateExpression='SET hosting_workflow_metadata.next_model_to_host_id = :val',
+            ExpressionAttributeValues={':val': next_model_to_host_id},
         )
 
     def update_experiment_hosting_endpoint(self, experiment_id, hosting_endpoint):
         self.table_session.update_item(
             Key={'experiment_id': experiment_id},
-            UpdateExpression=f'SET hosting_workflow_metadata.hosting_endpoint = :val',
-            ExpressionAttributeValues={':val': hosting_endpoint}
+            UpdateExpression='SET hosting_workflow_metadata.hosting_endpoint = :val',
+            ExpressionAttributeValues={':val': hosting_endpoint},
         )
 
     ####  Update states for joining workflow
@@ -118,22 +118,22 @@ class ExperimentDbClient(object):
     def update_experiment_joining_state(self, experiment_id, joining_state):
         self.table_session.update_item(
             Key={'experiment_id': experiment_id},
-            UpdateExpression=f'SET joining_workflow_metadata.joining_state = :val',
-            ExpressionAttributeValues={':val': joining_state}
+            UpdateExpression='SET joining_workflow_metadata.joining_state = :val',
+            ExpressionAttributeValues={':val': joining_state},
         )
 
     def update_experiment_last_joined_job_id(self, experiment_id, last_joined_job_id):
         self.table_session.update_item(
             Key={'experiment_id': experiment_id},
-            UpdateExpression=f'SET joining_workflow_metadata.last_joined_job_id = :val',
-            ExpressionAttributeValues={':val': last_joined_job_id}
+            UpdateExpression='SET joining_workflow_metadata.last_joined_job_id = :val',
+            ExpressionAttributeValues={':val': last_joined_job_id},
         )
 
     def update_experiment_next_join_job_id(self, experiment_id, next_join_job_id):
         self.table_session.update_item(
             Key={'experiment_id': experiment_id},
-            UpdateExpression=f'SET joining_workflow_metadata.next_join_job_id = :val',
-            ExpressionAttributeValues={':val': next_join_job_id}
+            UpdateExpression='SET joining_workflow_metadata.next_join_job_id = :val',
+            ExpressionAttributeValues={':val': next_join_job_id},
         )
 
     ####  Update states for evaluation workflow
@@ -141,20 +141,20 @@ class ExperimentDbClient(object):
     def update_experiment_evaluation_state(self, experiment_id, evaluation_state):
         self.table_session.update_item(
             Key={'experiment_id': experiment_id},
-            UpdateExpression=f'SET evaluation_workflow_metadata.evaluation_state = :val',
-            ExpressionAttributeValues={':val': evaluation_state}
+            UpdateExpression='SET evaluation_workflow_metadata.evaluation_state = :val',
+            ExpressionAttributeValues={':val': evaluation_state},
         )
 
     def update_experiment_last_evaluation_job_id(self, experiment_id, last_evaluation_job_id):
         self.table_session.update_item(
             Key={'experiment_id': experiment_id},
-            UpdateExpression=f'SET evaluation_workflow_metadata.last_evaluation_job_id = :val',
-            ExpressionAttributeValues={':val': last_evaluation_job_id}
+            UpdateExpression='SET evaluation_workflow_metadata.last_evaluation_job_id = :val',
+            ExpressionAttributeValues={':val': last_evaluation_job_id},
         )
 
     def update_experiment_next_evaluation_job_id(self, experiment_id, next_evaluation_job_id):
         self.table_session.update_item(
             Key={'experiment_id': experiment_id},
-            UpdateExpression=f'SET evaluation_workflow_metadata.next_evaluation_job_id = :val',
-            ExpressionAttributeValues={':val': next_evaluation_job_id}
+            UpdateExpression='SET evaluation_workflow_metadata.next_evaluation_job_id = :val',
+            ExpressionAttributeValues={':val': next_evaluation_job_id},
         )

@@ -178,19 +178,18 @@ class JoinManager:
             error_code = e.response["Error"]["Code"]
             message = e.response["Error"]["Message"]
 
-            if error_code == "BucketAlreadyOwnedByYou":
-                pass
-            elif (
-                error_code == "OperationAborted" and "conflicting conditional operation" in message
+            if (
+                error_code == "BucketAlreadyOwnedByYou"
+                or error_code == "OperationAborted"
+                and "conflicting conditional operation" in message
             ):
-                # If this bucket is already being concurrently created, we don't need to create it again.
                 pass
             elif error_code == "TooManyBuckets":
                 # Succeed if the default bucket exists
                 s3.meta.client.head_bucket(Bucket=s3_bucket_name)
             else:
                 raise
-        
+
         s3_waiter = s3_client.get_waiter('bucket_exists')
         s3_waiter.wait(Bucket=s3_bucket_name)
         return s3_bucket_name
@@ -388,12 +387,10 @@ class JoinManager:
             query_sample_string = f"SELECT * FROM joined_table WHERE joined_table.sample_prob <= {ratio}"
         else:
             query_sample_string = f"SELECT * FROM joined_table WHERE joined_table.sample_prob > {ratio}"
-        
-        query_string = f"""
+
+        return f"""
             {query_string_prefix}
             {query_sample_string}"""
-        
-        return query_string
         
     def _start_query(self, query_string, s3_output_path):
         """Start query with given query string and output path
@@ -429,13 +426,13 @@ class JoinManager:
             query_id (str): query id of Athena query
         """
         status = 'QUEUED'
-        while status == 'RUNNING' or status == 'QUEUED':
+        while status in {'RUNNING', 'QUEUED'}:
             try:
                 response = self.athena_client.get_query_execution(
                     QueryExecutionId=query_id
                 )
                 status = response['QueryExecution']['Status']['State']
-                logger.debug(f"Waiting query to finish...")
+                logger.debug('Waiting query to finish...')
                 time.sleep(5)
             except ClientError as e:
                 error_code = e.response['Error']['Code']
@@ -443,7 +440,7 @@ class JoinManager:
                 raise RuntimeError("Failed to retrieve athena query status with error {}: {}".format(
                     error_code, message
                 ))
-    
+
         if status == 'FAILED':
             raise RuntimeError(f"Query failed with reason: {response['QueryExecution']['Status']['StateChangeReason']}")
         elif status == 'CANCELLED':
@@ -661,7 +658,7 @@ class JoinManager:
         """
         if join_job_record is None:
             return
-        
+
         current_state = join_job_record.get("current_state", None)
         join_query_ids = join_job_record.get("join_query_ids", [])
 
@@ -673,10 +670,7 @@ class JoinManager:
             raise JoinQueryIdsNotAvailableException(f"Query ids for Joining job "
             f"'{self.join_job_id}' cannot be found.")
 
-        query_states = []
-
-        for query_id in join_query_ids:
-            query_states.append(self.get_query_status(query_id))
+        query_states = [self.get_query_status(query_id) for query_id in join_query_ids]
 
         # only 'SUCCEEDED' if both queries are 'SUCCEEDED'
         if query_states[0] == 'SUCCEEDED' and query_states[1] == 'SUCCEEDED':

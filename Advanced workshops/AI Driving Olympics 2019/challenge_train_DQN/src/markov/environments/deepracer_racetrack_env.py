@@ -476,18 +476,22 @@ class DeepRacerRacetrackEnv(gym.Env):
             self.write_metrics_to_s3()
 
     def update_eval_metrics(self, progress):
-        eval_metric = {}
-        eval_metric['completion_percentage'] = int(progress)
-        eval_metric['metric_time'] = int(round(time.time() * 1000))
+        eval_metric = {
+            'completion_percentage': int(progress),
+            'metric_time': int(round(time.time() * 1000)),
+        }
+
         eval_metric['start_time'] = int(round(self.simulation_start_time * 1000))
         eval_metric['elapsed_time_in_milliseconds'] = int(round((time.time() - self.simulation_start_time) * 1000))
         eval_metric['trial'] = int(self.number_of_trials)
         self.metrics.append(eval_metric)
 
     def update_training_metrics(self):
-        training_metric = {}
-        training_metric['reward_score'] = int(round(self.reward_in_episode))
-        training_metric['metric_time'] = int(round(time.time() * 1000))
+        training_metric = {
+            'reward_score': int(round(self.reward_in_episode)),
+            'metric_time': int(round(time.time() * 1000)),
+        }
+
         training_metric['start_time'] = int(round(self.simulation_start_time * 1000))
         training_metric['elapsed_time_in_milliseconds'] = int(round((time.time() - self.simulation_start_time) * 1000))
         training_metric['episode'] = int(self.episodes)

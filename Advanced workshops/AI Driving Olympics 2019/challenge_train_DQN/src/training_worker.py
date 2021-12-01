@@ -212,8 +212,8 @@ def main():
             graph_manager = short_dynamic_import(preset_location, ignore_module_case=True)
             success_custom_preset = s3_client.upload_file(
                 s3_key=os.path.normpath("%s/presets/preset.py" % args.s3_prefix), local_path=preset_local_path)
-            if success_custom_preset:
-                logger.info("Using preset: %s" % args.preset_s3_key)
+        if success_custom_preset:
+            logger.info("Using preset: %s" % args.preset_s3_key)
 
     if not success_custom_preset:
         from markov.sagemaker_graph_manager import get_graph_manager

@@ -110,10 +110,10 @@ class SageMakerRayLauncher(object):
         return config
 
     def get_all_host_names(self):
-        all_workers_host_names = []
-        for host in self.hosts_info:
-            # All primary cluster instances' hostnames. Prefix with "primary"
-            all_workers_host_names.append("%s:%s" % (self.cluster_type.value, host))
+        all_workers_host_names = [
+            "%s:%s" % (self.cluster_type.value, host) for host in self.hosts_info
+        ]
+
         for i in range(self.num_instances_secondary_cluster):
             # All secondary cluster instances' hostnames. Prefix with "secondary"
             all_workers_host_names.append("%s:algo-%s" % (Cluster.Secondary.value, i + 1))
@@ -193,9 +193,8 @@ class SageMakerRayLauncher(object):
         if ray.__version__ >= "0.6.5":
             if validation is not 1:
                 raise RuntimeError("Failed to save checkpoint files - .tune_metadata")
-        else:
-            if validation is not 2:
-                raise RuntimeError("Failed to save checkpoint files - .tune_metadata or .extra_data")
+        elif validation is not 2:
+            raise RuntimeError("Failed to save checkpoint files - .tune_metadata or .extra_data")
 
         for source_path in latest_checkpoints:
             _, ext = os.path.splitext(source_path)

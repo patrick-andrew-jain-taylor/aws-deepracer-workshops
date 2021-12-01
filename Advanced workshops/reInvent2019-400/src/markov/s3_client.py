@@ -108,15 +108,13 @@ class SageS3Client():
                     response = s3_client.list_objects_v2(Bucket=self.bucket,
                                                          Prefix=self._get_s3_key(rel_path))
                     if "Contents" in response:
-                        num_files = 0
-                        for obj in response["Contents"]:
+                        for num_files, obj in enumerate(response["Contents"]):
                             filename = os.path.abspath(os.path.join(checkpoint_dir,
                                                                     obj["Key"].replace(self.model_checkpoints_prefix,
                                                                                        "")))
                             s3_client.download_file(Bucket=self.bucket,
                                                     Key=obj["Key"],
                                                     Filename=filename)
-                            num_files += 1
                         return True
 
         except Exception as e:
@@ -140,16 +138,15 @@ class SageS3Client():
         time_elapsed = 0
         while True:
             response = s3_client.list_objects(Bucket=self.bucket, Prefix=self.done_file_key)
-            if "Contents" not in response:
-                time.sleep(1)
-                time_elapsed += 1
-                if time_elapsed % 5 == 0:
-                    logger.info ("Waiting for SageMaker Redis server IP... Time elapsed: %s seconds" % time_elapsed)
-                if time_elapsed >= timeout:
-                    logger.error("Cannot retrieve IP of redis server running in SageMaker. Job failed!")
-                    sys.exit(1)
-            else:
+            if "Contents" in response:
                 return
+            time.sleep(1)
+            time_elapsed += 1
+            if time_elapsed % 5 == 0:
+                logger.info ("Waiting for SageMaker Redis server IP... Time elapsed: %s seconds" % time_elapsed)
+            if time_elapsed >= timeout:
+                logger.error("Cannot retrieve IP of redis server running in SageMaker. Job failed!")
+                sys.exit(1)
 
     def download_file(self, s3_key, local_path):
         s3_client = self.get_client()
@@ -159,11 +156,10 @@ class SageS3Client():
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] == "404":
                 logger.info("Exception [{}] occured on download file-{} from s3 bucket-{} key-{}".format(e.response['Error'], local_path, self.bucket, s3_key))
-                return False
             else:
                 logger.error("boto client exception error [{}] occured on download file-{} from s3 bucket-{} key-{}"
                             .format(e.response['Error'], local_path, self.bucket, s3_key))
-                return False
+            return False
         except Exception as e:
             logger.error("Exception [{}] occcured on download file-{} from s3 bucket-{} key-{}".format(e, local_path, self.bucket, s3_key))
             return False

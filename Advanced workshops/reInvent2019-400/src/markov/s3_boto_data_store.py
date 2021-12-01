@@ -133,11 +133,9 @@ class S3BotoDataStore(DataStore):
                     response = s3_client.list_objects_v2(Bucket=self.params.bucket,
                                                         Prefix=self._get_s3_key(str(checkpoint_number_to_delete) + "_"))
                     if "Contents" in response:
-                        num_files = 0
-                        for obj in response["Contents"]:
+                        for num_files, obj in enumerate(response["Contents"]):
                             s3_client.delete_object(Bucket=self.params.bucket,
                                                     Key=obj["Key"])
-                            num_files += 1
         except Exception as e:
             utils.json_format_logger("Exception [{}] occured while uploading files on S3 for checkpoint".format(e),
                       **utils.build_system_error_dict(utils.SIMAPP_S3_DATA_STORE_EXCEPTION, utils.SIMAPP_EVENT_ERROR_CODE_500))
@@ -171,8 +169,7 @@ class S3BotoDataStore(DataStore):
 
                 checkpoint = self._get_current_checkpoint(checkpoint_metadata_filepath=filename)
                 if checkpoint:
-                    checkpoint_number = self._get_checkpoint_number(checkpoint)
-                    return checkpoint_number
+                    return self._get_checkpoint_number(checkpoint)
 
         except Exception as e:
             utils.json_format_logger("Exception [{}] occured while getting latest checkpoint from S3.".format(e),
@@ -197,22 +194,21 @@ class S3BotoDataStore(DataStore):
                         response = s3_client.list_objects_v2(Bucket=self.params.bucket,
                                         Prefix=self._get_s3_key(prefix))
 
-                        if "Contents" in response:
-                            if len(response["Contents"]) == 3:
-                                full_key_prefix = os.path.normpath(self.key_prefix) + "/"
-                                model_file_name = response["Contents"][0]["Key"].replace(full_key_prefix, "")
-                                model_file_name = model_file_name.split(".ckpt")[0]
-                                self._create_checkpoint_file(model_file_name)
-                                for obj in response["Contents"]:
-                                    # Get the local filename of the checkpoint file
-                                    filename = os.path.abspath(os.path.join(self.params.checkpoint_dir,
-                                                                            obj["Key"].replace(full_key_prefix, "")))
-                                    s3_client.download_file(Bucket=self.params.bucket,
-                                                            Key=obj["Key"],
-                                                            Filename=filename)
-                            else:
-                                time.sleep(SLEEP_TIME_WHILE_WAITING_FOR_DATA_FROM_TRAINER_IN_SECOND)
-                                continue        
+                        if (
+                            "Contents" in response
+                            and len(response["Contents"]) == 3
+                        ):
+                            full_key_prefix = os.path.normpath(self.key_prefix) + "/"
+                            model_file_name = response["Contents"][0]["Key"].replace(full_key_prefix, "")
+                            model_file_name = model_file_name.split(".ckpt")[0]
+                            self._create_checkpoint_file(model_file_name)
+                            for obj in response["Contents"]:
+                                # Get the local filename of the checkpoint file
+                                filename = os.path.abspath(os.path.join(self.params.checkpoint_dir,
+                                                                        obj["Key"].replace(full_key_prefix, "")))
+                                s3_client.download_file(Bucket=self.params.bucket,
+                                                        Key=obj["Key"],
+                                                        Filename=filename)
                         else:
                             time.sleep(SLEEP_TIME_WHILE_WAITING_FOR_DATA_FROM_TRAINER_IN_SECOND)
                             continue
@@ -286,8 +282,7 @@ class S3BotoDataStore(DataStore):
                     response = s3_client.list_objects_v2(Bucket=self.params.bucket,
                                                          Prefix=self._get_s3_key(checkpoint.model_checkpoint_path))
                     if "Contents" in response:
-                        num_files = 0
-                        for obj in response["Contents"]:
+                        for num_files, obj in enumerate(response["Contents"]):
                             # Get the local filename of the checkpoint file
                             full_key_prefix = os.path.normpath(self.key_prefix) + "/"
                             filename = os.path.abspath(os.path.join(self.params.checkpoint_dir,
@@ -295,7 +290,6 @@ class S3BotoDataStore(DataStore):
                             s3_client.download_file(Bucket=self.params.bucket,
                                                     Key=obj["Key"],
                                                     Filename=filename)
-                            num_files += 1
                         return True
 
         except Exception as e:
@@ -321,10 +315,9 @@ class S3BotoDataStore(DataStore):
         if "Contents" not in response:
             return False
 
-        success = s3_client.download_file(Bucket=self.params.bucket,
+        return s3_client.download_file(Bucket=self.params.bucket,
                                           Key=self.preset_data_key,
                                           Filename=local_path)
-        return success
 
     def get_current_checkpoint_number(self):
         return self._get_checkpoint_number(self._get_current_checkpoint())

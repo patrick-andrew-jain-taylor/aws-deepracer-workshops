@@ -163,7 +163,7 @@ class ExperimentManagerSyncThread(Thread):
             # A training request hasn't been made yet. 
             # Nothing to proccess. Return.
             return
-        
+
         next_model_to_train_id = training_workflow_metadata.get("next_model_to_train_id", None)
         training_state = training_workflow_metadata.get("training_state", None)
 
@@ -211,18 +211,7 @@ class ExperimentManagerSyncThread(Thread):
         if new_training_state == TrainingState.TRAINED:
             training_workflow_metadata['last_trained_model_id'] = next_model_to_train_id
             training_workflow_metadata['next_model_to_train_id'] = None
-            training_workflow_metadata['training_state'] = new_training_state
-
-        elif new_training_state == TrainingState.FAILED or new_training_state == TrainingState.STOPPED:
-            # training_workflow_metadata['last_trained_model_id'] remains the same
-            # training_workflow_metadata['next_model_to_train_id'] remains the same or change to None
-            # update the ExperimentDb TrainingWorkflowState to Failed
-            training_workflow_metadata['training_state'] = new_training_state
-        else:
-            # training_workflow_metadata['last_trained_model_id'] remains the same
-            # training_workflow_metadata['next_model_to_train_id'] remains the same
-            # update the ExperimentDb TrainingWorkflowState to new_training_state
-            training_workflow_metadata['training_state'] = new_training_state
+        training_workflow_metadata['training_state'] = new_training_state
 
         # Try to save the update in ExperimentDb
         # This can update the status only if in the current record,
@@ -357,7 +346,7 @@ class ExperimentManagerSyncThread(Thread):
                     self.experiment_manager.experiment_record._hosting_endpoint = sm_endpoint_info.get("EndpointArn")
                     self.experiment_manager.experiment_record._last_hosted_model_id = next_model_to_host_id
                     self.experiment_manager.experiment_record._next_model_to_host_id = None
-                    
+
                     # update DynamoDB record
                     self.exp_db_client.update_experiment_hosting_endpoint(
                         self.experiment_id, sm_endpoint_info.get("EndpointArn")
@@ -371,45 +360,43 @@ class ExperimentManagerSyncThread(Thread):
 
                     self._update_metrics_from_latest_hosting_update(next_model_to_host_id)
             else:
-                # deployment happened on existing endpoint
-                if self.experiment_manager.soft_deployment:
-                    # query endpoint to get the current hosted model id
+                # query endpoint to get the current hosted model id
 
-                    model_id = ""
-                    num_retries = 0
-                    while model_id != next_model_to_host_id:
-                        predictor = self.experiment_manager.predictor
-                        model_id = predictor.get_hosted_model_id()
-                        num_retries += 1
-                        if (not self.experiment_manager.local_mode) or (num_retries >= 5):
-                            break
-                        time.sleep(1)
+                model_id = ""
+                num_retries = 0
+                while model_id != next_model_to_host_id:
+                    predictor = self.experiment_manager.predictor
+                    model_id = predictor.get_hosted_model_id()
+                    num_retries += 1
+                    if (not self.experiment_manager.local_mode) or (num_retries >= 5):
+                        break
+                    time.sleep(1)
 
-                    # hosted model id got updated
-                    if model_id == next_model_to_host_id:
-                        hosting_state = HostingState.DEPLOYED
-                    else:
-                        hosting_state = HostingState.DEPLOYING
+                # hosted model id got updated
+                if model_id == next_model_to_host_id:
+                    hosting_state = HostingState.DEPLOYED
+                else:
+                    hosting_state = HostingState.DEPLOYING
 
-                    self.experiment_manager.experiment_record._hosting_state = hosting_state
-                    # update hosting_state in exp table
-                    self.exp_db_client.update_experiment_hosting_state(
-                        self.experiment_id, hosting_state
+                self.experiment_manager.experiment_record._hosting_state = hosting_state
+                # update hosting_state in exp table
+                self.exp_db_client.update_experiment_hosting_state(
+                    self.experiment_id, hosting_state
+                )
+
+                if hosting_state == HostingState.DEPLOYED:
+                    # update local record
+                    self.experiment_manager.experiment_record._last_hosted_model_id = next_model_to_host_id
+                    self.experiment_manager.experiment_record._next_model_to_host_id = None
+
+                    # update DynamoDB record
+                    self.exp_db_client.update_experiment_last_hosted_model_id(
+                        self.experiment_id, next_model_to_host_id
                     )
-
-                    if hosting_state == HostingState.DEPLOYED:
-                        # update local record
-                        self.experiment_manager.experiment_record._last_hosted_model_id = next_model_to_host_id
-                        self.experiment_manager.experiment_record._next_model_to_host_id = None
-                        
-                        # update DynamoDB record
-                        self.exp_db_client.update_experiment_last_hosted_model_id(
-                            self.experiment_id, next_model_to_host_id
-                        )
-                        self.exp_db_client.update_experiment_next_model_to_host_id(
-                            self.experiment_id, None
-                        )
-                        self._update_metrics_from_latest_hosting_update(next_model_to_host_id)
+                    self.exp_db_client.update_experiment_next_model_to_host_id(
+                        self.experiment_id, None
+                    )
+                    self._update_metrics_from_latest_hosting_update(next_model_to_host_id)
 
     def _update_experiment_db_joining_workflow_metadata(self, joining_workflow_metadata):
         """Update the joining workflow metadata in the experiment table
@@ -532,16 +519,15 @@ class ExperimentManagerSyncThread(Thread):
             model_id
             )
         eval_score = "n.a."
-        if model_record is not None:
-            eval_keys = model_record["eval_scores"].keys()
-            if eval_keys is None or len(eval_keys) == 0:
-                # No EvalScore is available yet.
-                return eval_score
-            # sort eval score by s3 prefix as joining job is ordered by time
-            eval_keys = sorted(eval_keys)
-            return model_record["eval_scores"][eval_keys[-1]] 
-        else: 
+        if model_record is None:
             return eval_score
+        eval_keys = model_record["eval_scores"].keys()
+        if eval_keys is None or len(eval_keys) == 0:
+            # No EvalScore is available yet.
+            return eval_score
+        # sort eval score by s3 prefix as joining job is ordered by time
+        eval_keys = sorted(eval_keys)
+        return model_record["eval_scores"][eval_keys[-1]]
     
     def emit_cloudwatch_metrics_for_training_and_hosting(self):
         try:
@@ -552,14 +538,11 @@ class ExperimentManagerSyncThread(Thread):
                     self.latest_trained_model_id,
                     self.latest_trained_model_eval_score
                 )
-            else:
-                #logger.debug("Train CW Metrics Not Set")
-                pass
         except Exception:
             logger.debug("Failed to publish CW Metrics for Training State")
             logger.debug(e)
 
-        try:        
+        try:    
             # emit CloudWatch Hosting metrics
             if self.latest_hosted_model_id and self.latest_hosted_model_eval_score:
                 self.experiment_manager.cw_logger.publish_latest_hosting_information(
@@ -567,9 +550,6 @@ class ExperimentManagerSyncThread(Thread):
                     self.latest_hosted_model_id,
                     self.latest_hosted_model_eval_score
                 )
-            else:
-                #logger.debug("Host CW Metrics Not Set")
-                pass
         except Exception:
             logger.debug("Failed to publish CW Metrics for Training State")
             logger.debug(e)
@@ -593,14 +573,12 @@ class ExperimentManagerSyncThread(Thread):
         if next_model_to_train_id is not None and training_state.endswith("ING"):
             if self.experiment_manager.next_model_to_train is not None:
                 self.experiment_manager.next_model_to_train.update_model_training_state()
-            else:
-                # only init the ModelManager() if the training job record already exists
-                if self.model_db_client.get_model_record(self.experiment_id, next_model_to_train_id) is not None:
-                    next_model_to_train = ModelManager(
-                        model_db_client=self.model_db_client,
-                        experiment_id=self.experiment_id,
-                        model_id=next_model_to_train_id)
-                    next_model_to_train.update_model_training_state()
+            elif self.model_db_client.get_model_record(self.experiment_id, next_model_to_train_id) is not None:
+                next_model_to_train = ModelManager(
+                    model_db_client=self.model_db_client,
+                    experiment_id=self.experiment_id,
+                    model_id=next_model_to_train_id)
+                next_model_to_train.update_model_training_state()
         time.sleep(1)
         self._update_experiment_db_training_workflow_metadata(training_workflow_metadata)
 
@@ -612,15 +590,13 @@ class ExperimentManagerSyncThread(Thread):
         if next_evaluation_job_id is not None and evaluation_state.endswith("ING"):
             if self.experiment_manager.next_model_to_evaluate is not None:
                 self.experiment_manager.next_model_to_evaluate.update_model_evaluation_state()
-            else:
-                # only init the ModelManager() if the evaluation job record already exists
-                if self.model_db_client.get_model_record(self.experiment_id, \
+            elif self.model_db_client.get_model_record(self.experiment_id, \
                     next_evaluation_job_id.split('-eval-')[0]) is not None:
-                    next_model_to_evaluate = ModelManager(
-                        model_db_client=self.model_db_client,
-                        experiment_id=self.experiment_id,
-                        model_id=next_evaluation_job_id.split('-eval-')[0])
-                    next_model_to_evaluate.update_model_evaluation_state()
+                next_model_to_evaluate = ModelManager(
+                    model_db_client=self.model_db_client,
+                    experiment_id=self.experiment_id,
+                    model_id=next_evaluation_job_id.split('-eval-')[0])
+                next_model_to_evaluate.update_model_evaluation_state()
         time.sleep(1)
         self._update_experiment_db_evaluation_workflow_metadata(evaluation_workflow_metadata)
 
@@ -636,14 +612,12 @@ class ExperimentManagerSyncThread(Thread):
         if next_join_job_id is not None and joining_state.endswith("ING"):
             if self.experiment_manager.next_join_job is not None:
                 self.experiment_manager.next_join_job.update_join_job_state()
-            else:
-                # only init the JoinManager() if the join job record already exists
-                if self.join_db_client.get_join_job_record(self.experiment_id, next_join_job_id) is not None:
-                    next_join_job = JoinManager(
-                        join_db_client=self.join_db_client,
-                        experiment_id=self.experiment_id,
-                        join_job_id=next_join_job_id)
-                    next_join_job.update_join_job_state()
+            elif self.join_db_client.get_join_job_record(self.experiment_id, next_join_job_id) is not None:
+                next_join_job = JoinManager(
+                    join_db_client=self.join_db_client,
+                    experiment_id=self.experiment_id,
+                    join_job_id=next_join_job_id)
+                next_join_job.update_join_job_state()
         time.sleep(1)
         self._update_experiment_db_joining_workflow_metadata(joining_workflow_metadata)
 
@@ -892,8 +866,7 @@ class ExperimentManager():
         for relative_key_path in key_path_list:
             manifest.append(relative_key_path)
 
-        manifest_file_path = self._write_manifest_to_s3(manifest_file=manifest)
-        return manifest_file_path
+        return self._write_manifest_to_s3(manifest_file=manifest)
 
     @property
     def last_trained_model_id(self):
@@ -963,19 +936,19 @@ class ExperimentManager():
         Returns:
             dict: A dictionary containing environment variables of hosting endpoint
         """
-        environ_vars = {"AWS_DEFAULT_REGION": self._region_name,
-                        "EXPERIMENT_ID": self.experiment_id,
-                        "EXP_METADATA_DYNAMO_TABLE": self.resource_manager.exp_db_table_name,
-                        "MODEL_METADATA_DYNAMO_TABLE": self.resource_manager.model_db_table_name,
-                        "MODEL_ID": model_id,
-                        "AWS_REGION": self._region_name,
-                        "FIREHOSE_STREAM": None,
-                        # Set to true if inference logging is required.
-                        "LOG_INFERENCE_DATA": str(not self.local_mode).lower(),
-                        # For efficient soft model updates.
-                        "MODEL_METADATA_POLLING": str(self.soft_deployment).lower()
-                        }
-        return environ_vars
+        return {
+            "AWS_DEFAULT_REGION": self._region_name,
+            "EXPERIMENT_ID": self.experiment_id,
+            "EXP_METADATA_DYNAMO_TABLE": self.resource_manager.exp_db_table_name,
+            "MODEL_METADATA_DYNAMO_TABLE": self.resource_manager.model_db_table_name,
+            "MODEL_ID": model_id,
+            "AWS_REGION": self._region_name,
+            "FIREHOSE_STREAM": None,
+            # Set to true if inference logging is required.
+            "LOG_INFERENCE_DATA": str(not self.local_mode).lower(),
+            # For efficient soft model updates.
+            "MODEL_METADATA_POLLING": str(self.soft_deployment).lower(),
+        }
 
     def _setup_hosting_endpoint(self, model_id, wait, **kwargs):
         """Initiate a hosting endpoint deployment
@@ -1073,7 +1046,6 @@ class ExperimentManager():
                                     wait=wait)
             except Exception as e:
                 logger.error(e)
-                pass
 
     def _check_if_model_ready(self, model_id):
         """Check if the model exists and already trained
@@ -1168,13 +1140,11 @@ class ExperimentManager():
                 self._setup_hosting_endpoint(model_id, wait=wait, **kwargs)
             except Exception as e:
                 logger.error(e)
-                pass
-        else:
-            if self.experiment_record._hosting_state.endswith("ING"):
-                logger.warning("Some deployment request is in progress, canceled this one")
-                return
-            elif self.experiment_record._hosting_state.endswith("ED"):
-                self._update_model_in_endpoint(self.soft_deployment, model_id, wait=wait)
+        elif self.experiment_record._hosting_state.endswith("ING"):
+            logger.warning("Some deployment request is in progress, canceled this one")
+            return
+        elif self.experiment_record._hosting_state.endswith("ED"):
+            self._update_model_in_endpoint(self.soft_deployment, model_id, wait=wait)
 
         # wait until exp ddb table updated
         if self.local_mode or wait:
@@ -1183,13 +1153,13 @@ class ExperimentManager():
                              and self.experiment_record._next_model_to_host_id is None
             num_retries = 0
             num_retries_blue_green_deployment = 0
-            
+
             while not deployed_state:
                 # Sync experiment state if required
                 # local mode is fast, 'num_retries' increases exponentially
                 self._sync_experiment_state_with_ddb()
                 logger.debug("Waiting for experiment table hosting status to be updated...")
-                
+
                 if self.soft_deployment:
                     time.sleep(2 * (2**num_retries))
                     deployed_state = self.experiment_record._hosting_state == HostingState.DEPLOYED \
@@ -1208,7 +1178,7 @@ class ExperimentManager():
                                     and self.experiment_record._last_hosted_model_id == model_id \
                                     and self.experiment_record._next_model_to_host_id is None
                     num_retries_blue_green_deployment += 1
-                    
+
                     if num_retries_blue_green_deployment%2 == 0:
                         logger.debug(f"Waited {int(num_retries_blue_green_deployment / 2)} " 
                                      f"minutes for blue-green deployment...")
@@ -1230,12 +1200,11 @@ class ExperimentManager():
         if self.experiment_record._hosting_endpoint:
             return Predictor(endpoint_name=self.experiment_id,
                              sagemaker_session=self.sagemaker_session)
-        else:
-            logger.warning("Hosting endpoint is not ready yet. A deployment "
-                           f"with model id '{self.experiment_record._next_model_to_host_id}' is in state of "
-                           f"'{self.experiment_record._hosting_state}'. Please check later.")
+        logger.warning("Hosting endpoint is not ready yet. A deployment "
+                       f"with model id '{self.experiment_record._next_model_to_host_id}' is in state of "
+                       f"'{self.experiment_record._hosting_state}'. Please check later.")
 
-            return None
+        return None
 
     def ingest_rewards(self, rewards_buffer):
         """Upload rewards data in a rewards buffer to S3 bucket
@@ -1275,9 +1244,7 @@ class ExperimentManager():
 
         logger.info(f"Successfully upload reward files to s3 bucket path {rewards_file_path}")
 
-        reward_s3_prefix = '/'.join(rewards_file_path.split('/')[:-1])
-
-        return reward_s3_prefix
+        return '/'.join(rewards_file_path.split('/')[:-1])
 
     def ingest_joined_data(self, joined_data_buffer, ratio=0.8):
         """Upload joined data in joined data buffer to S3 bucket
@@ -1305,7 +1272,7 @@ class ExperimentManager():
                                     input_obs_data_s3_path="local-join-does-not-apply",
                                     input_reward_data_s3_path="local-join-does-not-apply",
                                     boto_session=self.boto_session)
-    
+
         logger.info("Started dummy local joining job...")
         self.next_join_job.start_dummy_join(joined_data_buffer=joined_data_buffer,
                                        ratio=ratio)
@@ -1315,7 +1282,7 @@ class ExperimentManager():
                             and self.experiment_record._last_joined_job_id == next_join_job_id \
                             and self.experiment_record._next_join_job_id is None
         num_retries = 0
-        
+
         while not succeeded_state:
             # Sync experiment state if required
             self._sync_experiment_state_with_ddb()
@@ -1328,8 +1295,10 @@ class ExperimentManager():
             if num_retries >=5:
                 raise UnhandledWorkflowException(f"Joining job '{self.experiment_record._next_join_job_id}' "
                 f"was in state of '{self.experiment_record._joining_state}'. Failed to sync table states.")
-            if self.experiment_record._joining_state == JoiningState.FAILED or \
-                self.experiment_record._joining_state == JoiningState.CANCELLED:
+            if self.experiment_record._joining_state in [
+                JoiningState.FAILED,
+                JoiningState.CANCELLED,
+            ]:
                 raise WorkflowJoiningJobException(f"Joining job '{self.experiment_record._next_join_job_id}' "
                 f"ended with state '{self.experiment_record._joining_state}'. Please check if provided "
                 "joined_data_buffer was in correct data format.")
@@ -1389,15 +1358,13 @@ class ExperimentManager():
             self.next_join_job.start_join(ratio=ratio, wait=wait)
         except Exception as e:
             logger.error(e)
-            pass
-
         # wait until exp ddb table updated
         if self.local_mode or wait:
             succeeded_state = self.experiment_record._joining_state == JoiningState.SUCCEEDED \
                               and self.experiment_record._last_joined_job_id == next_join_job_id \
                               and self.experiment_record._next_join_job_id is None
             num_retries = 0
-            
+
             while not succeeded_state:
                 # Sync experiment state if required
                 self._sync_experiment_state_with_ddb()
@@ -1410,8 +1377,10 @@ class ExperimentManager():
                 if num_retries >=5:
                     raise UnhandledWorkflowException(f"Joining job '{self.experiment_record._next_join_job_id}' "
                     f"was in state of '{self.experiment_record._joining_state}'. Failed to sync table states.")
-                if self.experiment_record._joining_state == JoiningState.FAILED or \
-                    self.experiment_record._joining_state == JoiningState.CANCELLED:
+                if self.experiment_record._joining_state in [
+                    JoiningState.FAILED,
+                    JoiningState.CANCELLED,
+                ]:
                     raise WorkflowJoiningJobException(f"Joining job '{self.experiment_record._next_join_job_id}' "
                     f"ended with state '{self.experiment_record._joining_state}'. Please check Athena queries logs "
                     "for more information.")
@@ -1445,7 +1414,7 @@ class ExperimentManager():
                 next_model_to_train_id)
             self.exp_db_client.update_experiment_training_state(
                 self.experiment_id,
-                TrainingState.PENDING)            
+                TrainingState.PENDING)
             logger.info(f"Start training job for model '{next_model_to_train_id}''")
 
 
@@ -1476,18 +1445,18 @@ class ExperimentManager():
                     logs=wait
                     )
             except Exception as e:
-                logger.error(f"Failed to start new Model Training job for"
-                              " ModelId {next_model_to_train_id}")
-                logger.error(e)
-                pass
+                logger.error(
+                    'Failed to start new Model Training job for ModelId {next_model_to_train_id}'
+                )
 
+                logger.error(e)
         # wait until ExperimentDb state is updated
         if self.local_mode or wait:
             trained_state = self.experiment_record._training_state == TrainingState.TRAINED \
                             and self.experiment_record._last_trained_model_id == next_model_to_train_id \
                             and self.experiment_record._next_model_to_train_id is None
             num_retries = 0
-            
+
             while not trained_state:
                 # Sync experiment state if required
                 self._sync_experiment_state_with_ddb()
@@ -1500,8 +1469,10 @@ class ExperimentManager():
                 if num_retries >=5:
                     raise UnhandledWorkflowException(f"Training job '{self.experiment_record._next_model_to_train_id}' "
                     f"was in state of '{self.experiment_record._training_state}'. Expected it to be TRAINED.")
-                if self.experiment_record._training_state == TrainingState.FAILED \
-                    or self.experiment_record._training_state == TrainingState.STOPPED:
+                if self.experiment_record._training_state in [
+                    TrainingState.FAILED,
+                    TrainingState.STOPPED,
+                ]:
                     raise SageMakerTrainingJobException(f"Training job '{self.experiment_record._next_model_to_train_id}' "
                     f"ended in state of '{self.experiment_record._training_state}'. Please check Sagemaker logs for "
                     "more information.")
@@ -1527,10 +1498,11 @@ class ExperimentManager():
 
             input_model_id = self.experiment_record._last_trained_model_id
 
-        if input_model_id != self.experiment_record._last_trained_model_id:
-            # No deployment if the given model is not ready
-            if not self._check_if_model_ready(input_model_id):
-                return
+        if (
+            input_model_id != self.experiment_record._last_trained_model_id
+            and not self._check_if_model_ready(input_model_id)
+        ):
+            return
 
         # experiment only allows one training job at a time,
         # validate no other training request is in progress
@@ -1576,15 +1548,13 @@ class ExperimentManager():
                                         logs=wait)
             except Exception as e:
                 logger.error(e)
-                pass
-
         # wait until exp ddb table updated
         if self.local_mode or wait:
             trained_state = self.experiment_record._training_state == TrainingState.TRAINED \
                             and self.experiment_record._last_trained_model_id == next_model_to_train_id \
                             and self.experiment_record._next_model_to_train_id is None
             num_retries = 0
-            
+
             while not trained_state:
                 # Sync experiment state if required
                 self._sync_experiment_state_with_ddb()
@@ -1597,8 +1567,10 @@ class ExperimentManager():
                 if num_retries >=5:
                     raise UnhandledWorkflowException(f"Training job '{self.experiment_record._next_model_to_train_id}' "
                     f"was in state of '{self.experiment_record._training_state}'. Expected it to be TRAINED.")
-                if self.experiment_record._training_state == TrainingState.FAILED \
-                    or self.experiment_record._training_state == TrainingState.STOPPED:
+                if self.experiment_record._training_state in [
+                    TrainingState.FAILED,
+                    TrainingState.STOPPED,
+                ]:
                     raise SageMakerTrainingJobException(f"Training job '{self.experiment_record._next_model_to_train_id}' "
                     f"ended in state of '{self.experiment_record._training_state}'. Please check Sagemaker logs for "
                     "more information.")
@@ -1625,18 +1597,11 @@ class ExperimentManager():
                 evaluate_model_id = self.experiment_record._last_trained_model_id
             else:
                 logger.error("Evaluation ModelId in None!")
-                pass
         elif evaluate_model_id != self.experiment_record._last_trained_model_id:
             # evaluate_model_id is not None and also not last_trained_model_id
             if not self._check_if_model_ready(evaluate_model_id):
                 logger.error(f"ModelId {evaluate_model_id} is not ready for evaluation.")
                 evaluate_model_id = None
-            else:
-                pass
-        else:
-            # evaluate_model_id is not None and evaluate_model_id == _last_trained_model_id
-            pass
-
         if not evaluate_model_id:
             # evaluate_model_id is still None. Raise an exception...
             raise InvalidUsageException("Please provide a valid ModelId to be evaluated")
@@ -1648,7 +1613,7 @@ class ExperimentManager():
                 "Wait until the evaluation job finished or canceled the request.")
             raise InvalidUsageException("Please wait for old Evaluation Job to Complete before requesting a new one!")
         else:
-            next_evaluation_job_id = f"{evaluate_model_id}-eval-{str(int(time.time()))}"
+            next_evaluation_job_id = f'{evaluate_model_id}-eval-{int(time.time())}'
 
             logger.info(f"Evaluating model '{evaluate_model_id}' with evaluation job id '{next_evaluation_job_id}'")
 
@@ -1664,10 +1629,6 @@ class ExperimentManager():
             if isinstance(input_data_s3_prefix, list):
                 # generate manifest file and upload to s3
                 manifest_file_path = self._generate_manifest(input_data_s3_prefix)
-            else:
-                # add logic if input_data_s3_prefix is string
-                pass
-
             try:
                 self.next_model_to_evaluate = ModelManager(
                     model_db_client=self.model_db_client,
@@ -1690,8 +1651,6 @@ class ExperimentManager():
                     )
             except Exception as e:
                 logger.error(e)
-                pass
-
         # wait until exp ddb table updated
         if self.local_mode or wait:
             evaluated_state = self.experiment_record._evaluation_state == EvaluationState.EVALUATED \
@@ -1699,7 +1658,7 @@ class ExperimentManager():
                               and self.experiment_record._next_evaluation_job_id is None
 
             num_retries = 0
-            
+
             while not evaluated_state:
                 # Sync experiment state if required
                 self._sync_experiment_state_with_ddb()
@@ -1712,8 +1671,10 @@ class ExperimentManager():
                 if num_retries >=5:
                     raise UnhandledWorkflowException(f"Evaluation job '{self.experiment_record._next_evaluation_job_id}' "
                     f"was in state of '{self.experiment_record._evaluation_state}'. Failed to sync table states.")
-                if self.experiment_record._evaluation_state == EvaluationState.FAILED \
-                    or self.experiment_record._evaluation_state == EvaluationState.STOPPED:
+                if self.experiment_record._evaluation_state in [
+                    EvaluationState.FAILED,
+                    EvaluationState.STOPPED,
+                ]:
                     raise SageMakerTrainingJobException(f"Evaluation job '{self.experiment_record._next_evaluation_job_id}' "
                     f"ended in state of '{self.experiment_record._evaluation_state}'. Please check Sagemaker logs for "
                     "more information.")
@@ -1733,10 +1694,12 @@ class ExperimentManager():
         if evaluate_model_id is None:
             evaluate_model_id = self.experiment_record._last_trained_model_id
 
-        if evaluate_model_id != self.experiment_record._last_trained_model_id:
-            if not self._check_if_model_ready(evaluate_model_id):
-                return
-        
+        if (
+            evaluate_model_id != self.experiment_record._last_trained_model_id
+            and not self._check_if_model_ready(evaluate_model_id)
+        ):
+            return
+
         # use last joined job's eval data by default
         if eval_data_path is None:
             eval_data_path = self.last_joined_job_eval_data
@@ -1745,25 +1708,19 @@ class ExperimentManager():
         f" on eval data set '{eval_data_path}'")
 
         eval_score = "n.a."
-        if not evaluate_model_id or not eval_data_path:
-            # either evaluate_model_id or eval_data_path is none
-            pass
-        else:
+        if evaluate_model_id and eval_data_path:
             model_record = self.model_db_client.get_model_record(self.experiment_id, evaluate_model_id)
             if model_record:
                 eval_scores_map = model_record.get('eval_scores', {})
                 eval_score = eval_scores_map.get(eval_data_path, eval_score)
             else:
                 logger.warn(f"Model Record not found with ModelId: {evaluate_model_id}")
-                pass
-
         if eval_score == "n.a.":
             raise EvalScoreNotAvailableException(f"Evaluation score is not available for model '{evaluate_model_id}'" 
                                                 f"with data '{eval_data_path}'.'")
-        else:
-            eval_score = float(eval_score)
-            logger.info(f"Evaluation score for model '{evaluate_model_id}'" 
-                f"with data '{eval_data_path}' is {eval_score}.")
+        eval_score = float(eval_score)
+        logger.info(f"Evaluation score for model '{evaluate_model_id}'" 
+            f"with data '{eval_data_path}' is {eval_score}.")
 
         return eval_score
     
@@ -1834,12 +1791,10 @@ class ExperimentManager():
             (bool, bool): Whether a running container exist,
                 Whether successfully close the container
         """
-        present = False
         killed = None
         client = docker.from_env()
         running_containers = [i for i in client.containers.list() if self.image in i.image.tags]
-        if len(running_containers) > 0:
-            present = True
+        present = len(running_containers) > 0
         try:
             for container in running_containers:
                 container.kill()

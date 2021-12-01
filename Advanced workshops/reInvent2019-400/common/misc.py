@@ -61,7 +61,7 @@ def wait_for_s3_object(s3_bucket, key, local_dir, local_prefix='',
     print("Waiting for s3://%s/%s..." % (s3_bucket, key), end='', flush=True)
     start_time = time.time()
     cnt = 0
-    while len(objects) == 0:
+    while not objects:
         objects = list(bucket.objects.filter(Prefix=key))
         if fetch_only:
             objects = list(filter(fetch_only, objects))

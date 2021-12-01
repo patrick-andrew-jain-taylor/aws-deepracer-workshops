@@ -94,12 +94,10 @@ class PPOHead(Head):
             self.scaled_advantages = self.likelihood_ratio * self.advantages
         # minus sign is in order to set an objective to minimize (we actually strive for maximizing the surrogate loss)
         self.surrogate_loss = -tf.reduce_mean(self.scaled_advantages)
-        if self.is_local:
-            # add entropy regularization
-            if self.beta:
-                self.entropy = tf.reduce_mean(self.policy_distribution.entropy())
-                self.regularizations = -tf.multiply(self.beta, self.entropy, name='entropy_regularization')
-                tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES, self.regularizations)
+        if self.is_local and self.beta:
+            self.entropy = tf.reduce_mean(self.policy_distribution.entropy())
+            self.regularizations = -tf.multiply(self.beta, self.entropy, name='entropy_regularization')
+            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES, self.regularizations)
 
         self.loss = self.surrogate_loss
         tf.losses.add_loss(self.loss)

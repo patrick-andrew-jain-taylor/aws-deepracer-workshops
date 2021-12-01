@@ -27,9 +27,11 @@ def run_cmd(cmd_args, change_working_directory="./", shell=False, executable=Non
         executable=executable,
         stdout=subprocess.PIPE
     )
-    result = list()
-    for line in iter(process.stdout.readline, b""):
-        result.append(line.decode("utf-8").rstrip())
+    result = [
+        line.decode("utf-8").rstrip()
+        for line in iter(process.stdout.readline, b"")
+    ]
+
     process.communicate()
     return process.returncode, result
 
@@ -85,5 +87,4 @@ def get_custom_image_name(custom_image_name):
     aws_account = session.client("sts").get_caller_identity()['Account']
     aws_region = session.region_name
     ecr_repo = '%s.dkr.ecr.%s.amazonaws.com' % (aws_account, aws_region)
-    ecr_tag = '%s/%s' % (ecr_repo, custom_image_name)
-    return ecr_tag
+    return '%s/%s' % (ecr_repo, custom_image_name)

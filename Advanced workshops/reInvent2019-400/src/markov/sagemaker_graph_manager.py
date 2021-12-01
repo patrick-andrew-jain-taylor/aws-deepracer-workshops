@@ -19,8 +19,7 @@ def get_graph_manager(**hp_dict):
     ####################
     # All Default Parameters #
     ####################
-    params = {}
-    params["batch_size"] = int(hp_dict.get("batch_size", 64))
+    params = {'batch_size': int(hp_dict.get("batch_size", 64))}
     params["num_epochs"] = int(hp_dict.get("num_epochs", 10))
     params["stack_size"] = int(hp_dict.get("stack_size", 1))
     params["lr"] = float(hp_dict.get("lr", 0.0003))

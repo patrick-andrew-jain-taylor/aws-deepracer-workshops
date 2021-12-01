@@ -138,11 +138,9 @@ class ModelRecord():
         self._eval_state = "Failed"
 
     def is_train_completed(self):
-        if self._train_state and \
+        return bool(self._train_state and \
                 self._train_state == "Completed" and \
-                self._s3_model_output_path is not None:
-            return True
-        return False
+                self._s3_model_output_path is not None)
 
     def model_state(self):
         return self._train_state

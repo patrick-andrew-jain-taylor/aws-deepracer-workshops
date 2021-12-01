@@ -168,8 +168,7 @@ class SageMakerCoachPresetLauncher(CoachLauncher):
         preset_path = self.path_of_main_launcher()
         print("Loading preset %s from %s" % (preset_name, preset_path))
         preset_path = os.path.join(self.path_of_main_launcher(),preset_name) + '.py:graph_manager'
-        graph_manager = short_dynamic_import(preset_path, ignore_module_case=True)
-        return graph_manager
+        return short_dynamic_import(preset_path, ignore_module_case=True)
 
     def get_graph_manager_from_args(self, args):
         # First get the graph manager for the customer-specified (or default) preset
@@ -221,17 +220,17 @@ class SageMakerCoachPresetLauncher(CoachLauncher):
     def _save_onnx_model(self):
         from .onnx_utils import fix_onnx_model
         ckpt_dir = '/opt/ml/output/data/checkpoint'
-        model_dir = '/opt/ml/model'
         # find latest onnx file
         # currently done by name, expected to be changed in future release of coach.
         glob_pattern = os.path.join(ckpt_dir, '*.onnx')
         onnx_files = [file for file in glob.iglob(glob_pattern, recursive=True)]
-        if len(onnx_files) > 0:
+        if onnx_files:
             extract_step = lambda string: int(re.search('/(\d*)_Step.*', string, re.IGNORECASE).group(1))
             onnx_files.sort(key=extract_step)
             latest_onnx_file = onnx_files[-1]
             # move to model directory
             filepath_from = os.path.abspath(latest_onnx_file)
+            model_dir = '/opt/ml/model'
             filepath_to = os.path.join(model_dir, "model.onnx")
             shutil.move(filepath_from, filepath_to)
             fix_onnx_model(filepath_to)
@@ -293,14 +292,12 @@ class SageMakerCoachLauncher(SageMakerCoachPresetLauncher):
         env_params = self.define_environment()
         self.hyperparameters.apply_subset(env_params, "env_params.")
 
-        graph_manager = BasicRLGraphManager(
+        return BasicRLGraphManager(
             agent_params=agent_params,
             env_params=env_params,
             schedule_params=schedule_params,
             vis_params=vis_params,
         )
-
-        return graph_manager
 
     def config_schedule(self, schedule_params):
         pass
