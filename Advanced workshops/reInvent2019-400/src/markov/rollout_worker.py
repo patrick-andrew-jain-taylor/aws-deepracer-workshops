@@ -64,9 +64,8 @@ def has_checkpoint(checkpoint_dir):
     """
     True if a checkpoint is present in checkpoint_dir
     """
-    if os.path.isdir(checkpoint_dir):
-        if len(os.listdir(checkpoint_dir)) > 0:
-            return os.path.isfile(os.path.join(checkpoint_dir, "checkpoint"))
+    if os.path.isdir(checkpoint_dir) and len(os.listdir(checkpoint_dir)) > 0:
+        return os.path.isfile(os.path.join(checkpoint_dir, "checkpoint"))
 
     return False
 
@@ -74,7 +73,7 @@ def wait_for_checkpoint(checkpoint_dir, data_store=None, timeout=10):
     """
     block until there is a checkpoint in checkpoint_dir
     """
-    for i in range(timeout):
+    for _ in range(timeout):
         if data_store:
             data_store.load_from_store()
 
@@ -183,23 +182,22 @@ def rollout_worker(graph_manager, checkpoint_dir, data_store, num_workers, memor
                 graph_manager.act(EnvironmentEpisodes(num_steps=act_steps))
 
             latest_checkpoint = data_store.get_latest_checkpoint()
-            if latest_checkpoint:
-                if latest_checkpoint > current_checkpoint:
-                    # Stop the simulation and download the latest model
-                    try:
-                        graph_manager.top_level_manager.environment.env.env.set_allow_servo_step_signals(False)
-                        graph_manager.top_level_manager.environment.env.env.stop_car()
-                    except Exception as ex:
-                        utils.json_format_logger("Method not defined in enviroment class: {}".format(ex),
-                                        **utils.build_system_error_dict(utils.SIMAPP_SIMULATION_WORKER_EXCEPTION, utils.SIMAPP_EVENT_ERROR_CODE_500))
+            if latest_checkpoint and latest_checkpoint > current_checkpoint:
+                # Stop the simulation and download the latest model
+                try:
+                    graph_manager.top_level_manager.environment.env.env.set_allow_servo_step_signals(False)
+                    graph_manager.top_level_manager.environment.env.env.stop_car()
+                except Exception as ex:
+                    utils.json_format_logger("Method not defined in enviroment class: {}".format(ex),
+                                    **utils.build_system_error_dict(utils.SIMAPP_SIMULATION_WORKER_EXCEPTION, utils.SIMAPP_EVENT_ERROR_CODE_500))
 
-                    data_store.load_from_store(expected_checkpoint_number=latest_checkpoint)
-                    graph_manager.restore_checkpoint()
-                    current_checkpoint = get_latest_checkpoint(checkpoint_dir)
-                    graph_manager.top_level_manager.environment.env.env.set_checkpoint_num(current_checkpoint)
-                    for level in graph_manager.level_managers:
-                        for agent in level.agents.values():
-                            agent.memory.memory_backend.set_current_checkpoint(current_checkpoint)
+                data_store.load_from_store(expected_checkpoint_number=latest_checkpoint)
+                graph_manager.restore_checkpoint()
+                current_checkpoint = get_latest_checkpoint(checkpoint_dir)
+                graph_manager.top_level_manager.environment.env.env.set_checkpoint_num(current_checkpoint)
+                for level in graph_manager.level_managers:
+                    for agent in level.agents.values():
+                        agent.memory.memory_backend.set_current_checkpoint(current_checkpoint)
 
 def main():
     screen.set_use_colors(False)

@@ -38,8 +38,7 @@ def build_and_push_docker_image(repository_name, dockerfile='Dockerfile', build_
     base_image = _find_base_image_in_dockerfile(dockerfile)
     _ecr_login_if_needed(base_image)
     _build_from_dockerfile(repository_name, dockerfile, build_args)
-    ecr_tag = push(repository_name)
-    return ecr_tag
+    return push(repository_name)
 
 
 def _build_from_dockerfile(repository_name, dockerfile='Dockerfile', build_args={}):
@@ -75,20 +74,18 @@ def push(tag, aws_account=None, aws_region=None):
     session = boto3.Session()
     aws_account = aws_account or session.client("sts").get_caller_identity()['Account']
     aws_region = aws_region or session.region_name
-    print("Account : {} and Region: {}".format(aws_account, aws_region)) 
+    print("Account : {} and Region: {}".format(aws_account, aws_region))
     try:
         repository_name, version = tag.split(':')
     except ValueError:  # split failed because no :
         repository_name = tag
         version = "latest"
-    print("repository_name : {} and version: {}".format(repository_name, version)) 
+    print("repository_name : {} and version: {}".format(repository_name, version))
     ecr_client = session.client('ecr', region_name=aws_region)
 
     _create_ecr_repo(ecr_client, repository_name)
     _ecr_login(ecr_client, aws_account)
-    ecr_tag = _push(aws_account, aws_region, tag)
-
-    return ecr_tag
+    return _push(aws_account, aws_region, tag)
 
 
 def _push(aws_account, aws_region, tag):
@@ -129,7 +126,7 @@ def _ecr_login_if_needed(image):
     ecr_client = boto3.client('ecr')
 
     # Only ECR images need login
-    if not ('dkr.ecr' in image and 'amazonaws.com' in image):
+    if 'dkr.ecr' not in image or 'amazonaws.com' not in image:
         return
 
     # do we have the image?

@@ -54,9 +54,8 @@ def has_checkpoint(checkpoint_dir):
     """
     True if a checkpoint is present in checkpoint_dir
     """
-    if os.path.isdir(checkpoint_dir):
-        if len(os.listdir(checkpoint_dir)) > 0:
-            return os.path.isfile(os.path.join(checkpoint_dir, "checkpoint"))
+    if os.path.isdir(checkpoint_dir) and len(os.listdir(checkpoint_dir)) > 0:
+        return os.path.isfile(os.path.join(checkpoint_dir, "checkpoint"))
 
     return False
 
@@ -64,7 +63,7 @@ def wait_for_checkpoint(checkpoint_dir, data_store=None, timeout=10):
     """
     block until there is a checkpoint in checkpoint_dir
     """
-    for i in range(timeout):
+    for _ in range(timeout):
         if data_store:
             data_store.load_from_store()
 
@@ -151,7 +150,7 @@ def rollout_worker(graph_manager, checkpoint_dir, data_store, num_workers, memor
         last_checkpoint = 0
         act_steps = math.ceil((graph_manager.agent_params.algorithm.num_consecutive_playing_steps.num_steps) / num_workers)
 
-        for i in range(int(graph_manager.improve_steps.num_steps/act_steps)):
+        for _ in range(int(graph_manager.improve_steps.num_steps/act_steps)):
 
             if should_stop(checkpoint_dir):
                 break
@@ -177,7 +176,7 @@ def rollout_worker(graph_manager, checkpoint_dir, data_store, num_workers, memor
                                    **utils.build_system_error_dict(utils.SIMAPP_SIMULATION_WORKER_EXCEPTION, utils.SIMAPP_EVENT_ERROR_CODE_500))
 
             new_checkpoint = get_latest_checkpoint(checkpoint_dir)
-            
+
             if graph_manager.agent_params.algorithm.distributed_coach_synchronization_type == DistributedCoachSynchronizationType.SYNC:
                 while new_checkpoint is None or new_checkpoint <= last_checkpoint:
                     if should_stop(checkpoint_dir):
@@ -187,9 +186,13 @@ def rollout_worker(graph_manager, checkpoint_dir, data_store, num_workers, memor
                     new_checkpoint = get_latest_checkpoint(checkpoint_dir)
                 graph_manager.restore_checkpoint()
 
-            if graph_manager.agent_params.algorithm.distributed_coach_synchronization_type == DistributedCoachSynchronizationType.ASYNC:
-                if new_checkpoint is not None and new_checkpoint > last_checkpoint:
-                    graph_manager.restore_checkpoint()
+            if (
+                graph_manager.agent_params.algorithm.distributed_coach_synchronization_type
+                == DistributedCoachSynchronizationType.ASYNC
+                and new_checkpoint is not None
+                and new_checkpoint > last_checkpoint
+            ):
+                graph_manager.restore_checkpoint()
 
             if new_checkpoint is not None:
                 last_checkpoint = new_checkpoint

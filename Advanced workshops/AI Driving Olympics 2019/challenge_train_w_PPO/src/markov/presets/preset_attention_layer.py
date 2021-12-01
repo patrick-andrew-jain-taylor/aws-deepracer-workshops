@@ -26,7 +26,7 @@ from types import FunctionType
 
 # define global dictionary for storing layer type to layer implementation mapping
 tf_layer_dict = dict()
-tf_layer_class_dict = dict()
+tf_layer_class_dict = {}
 
 
 def reg_to_tf_instance(layer_type) -> FunctionType:

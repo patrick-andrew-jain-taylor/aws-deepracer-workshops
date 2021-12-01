@@ -50,9 +50,9 @@ import tensorflow as tf
 
 SM_MODEL_OUTPUT_DIR = os.environ.get("ALGO_MODEL_DIR", "/opt/ml/model")
 
-def json_format_logger (msg, *args, **kwargs):
+def json_format_logger(msg, *args, **kwargs):
     dict_obj = OrderedDict()
-    json_format_log = dict()
+    json_format_log = {}
     log_error = False
 
     message = msg.format(args)

@@ -21,11 +21,16 @@ def change_permissions_recursive(path, mode):
 
 def export_tf_serving(agent, output_dir):
     policy = agent.local_evaluator.policy_map["default"]
-    input_signature = {}
-    input_signature["observations"] = tf.saved_model.utils.build_tensor_info(policy.observations)
+    input_signature = {
+        'observations': tf.saved_model.utils.build_tensor_info(
+            policy.observations
+        )
+    }
 
-    output_signature = {}
-    output_signature["actions"] = tf.saved_model.utils.build_tensor_info(policy.sampler)
+    output_signature = {
+        'actions': tf.saved_model.utils.build_tensor_info(policy.sampler)
+    }
+
     output_signature["logits"] = tf.saved_model.utils.build_tensor_info(policy.logits)
 
     signature_def = (

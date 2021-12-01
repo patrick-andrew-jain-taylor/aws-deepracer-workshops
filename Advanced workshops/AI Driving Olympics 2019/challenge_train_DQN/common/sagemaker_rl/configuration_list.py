@@ -47,10 +47,7 @@ class ConfigurationList(object):
             top_key, sub_keys = key_list = key.split(".",1)
             if top_key.startswith("__"):
                 raise ValueError("Attempting to set unsafe property name %s" % top_key)
-            if isinstance(obj,dict):
-                sub_obj = obj[top_key]
-            else:
-                sub_obj = obj.__dict__[top_key]
+            sub_obj = obj[top_key] if isinstance(obj,dict) else obj.__dict__[top_key]
             # Recurse
             return self._set_rl_property_value(sub_obj, sub_keys, val, "%s.%s" % (path,top_key) )
         else:

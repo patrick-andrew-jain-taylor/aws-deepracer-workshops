@@ -14,10 +14,7 @@ class ModelDbClient:
         self.table_session = table_session
 
     def check_model_record_exists(self, experiment_id, model_id):
-        if self.get_model_record(experiment_id, model_id) is None:
-            return False
-        else:
-            return True
+        return self.get_model_record(experiment_id, model_id) is not None
 
     def get_model_record(self, experiment_id, model_id):
         response = self.table_session.query(
@@ -102,78 +99,77 @@ class ModelDbClient:
     def update_model_input_model_id(self, experiment_id, model_id, input_model_id):
         self.table_session.update_item(
             Key={'experiment_id': experiment_id, 'model_id': model_id},
-            UpdateExpression=f'SET input_model_id = :val',
-            ExpressionAttributeValues={':val': input_model_id}
+            UpdateExpression='SET input_model_id = :val',
+            ExpressionAttributeValues={':val': input_model_id},
         )
 
     def update_model_input_data_s3_prefix(self, experiment_id, model_id, input_data_s3_prefix):
         self.table_session.update_item(
             Key={'experiment_id': experiment_id, 'model_id': model_id},
-            UpdateExpression=f'SET input_data_s3_prefix = :val',
-            ExpressionAttributeValues={':val': input_data_s3_prefix}
+            UpdateExpression='SET input_data_s3_prefix = :val',
+            ExpressionAttributeValues={':val': input_data_s3_prefix},
         )
     def update_model_s3_model_output_path(self, experiment_id, model_id, s3_model_output_path):
         self.table_session.update_item(
             Key={'experiment_id': experiment_id, 'model_id': model_id},
-            UpdateExpression=f'SET s3_model_output_path = :val',
-            ExpressionAttributeValues={':val': s3_model_output_path}
+            UpdateExpression='SET s3_model_output_path = :val',
+            ExpressionAttributeValues={':val': s3_model_output_path},
         )
 
     def update_model_train_state(self, experiment_id, model_id, train_state):
         self.table_session.update_item(
             Key={'experiment_id': experiment_id, 'model_id': model_id},
-            UpdateExpression=f'SET train_state = :val',
-            ExpressionAttributeValues={':val': train_state}
+            UpdateExpression='SET train_state = :val',
+            ExpressionAttributeValues={':val': train_state},
         )
     
     def update_model_eval_state(self, experiment_id, model_id, eval_state):
         self.table_session.update_item(
             Key={'experiment_id': experiment_id, 'model_id': model_id},
-            UpdateExpression=f'SET eval_state = :val',
-            ExpressionAttributeValues={':val': eval_state}
+            UpdateExpression='SET eval_state = :val',
+            ExpressionAttributeValues={':val': eval_state},
         )
 
     def update_model_eval_scores(self, experiment_id, model_id, eval_scores):
         self.table_session.update_item(
             Key={'experiment_id': experiment_id, 'model_id': model_id},
-            UpdateExpression=f'SET eval_scores = :val',
-            ExpressionAttributeValues={':val': eval_scores}
+            UpdateExpression='SET eval_scores = :val',
+            ExpressionAttributeValues={':val': eval_scores},
         )
 
     def update_model_eval_scores_and_state(self, experiment_id, model_id, eval_scores, eval_state):
         self.table_session.update_item(
             Key={'experiment_id': experiment_id, 'model_id': model_id},
-            UpdateExpression=f'SET eval_scores = :score_val, eval_state = :state_val',
+            UpdateExpression='SET eval_scores = :score_val, eval_state = :state_val',
             ExpressionAttributeValues={
                 ':score_val': eval_scores,
-                ':state_val': eval_state
-            }
+                ':state_val': eval_state,
+            },
         )         
 
     def update_model_training_start_time(self, experiment_id, model_id, training_start_time):
         self.table_session.update_item(
             Key={'experiment_id': experiment_id, 'model_id': model_id},
-            UpdateExpression=f'SET training_start_time = :val',
-            ExpressionAttributeValues={':val': training_start_time}
+            UpdateExpression='SET training_start_time = :val',
+            ExpressionAttributeValues={':val': training_start_time},
         )
 
     def update_model_training_end_time(self, experiment_id, model_id, training_end_time):
         self.table_session.update_item(
             Key={'experiment_id': experiment_id, 'model_id': model_id},
-            UpdateExpression=f'SET training_end_time = :val',
-            ExpressionAttributeValues={':val': training_end_time}
+            UpdateExpression='SET training_end_time = :val',
+            ExpressionAttributeValues={':val': training_end_time},
         )
 
     def update_model_training_stats(self, experiment_id, model_id,
         s3_model_output_path, training_start_time, training_end_time, train_state):
         self.table_session.update_item(
             Key={'experiment_id': experiment_id, 'model_id': model_id},
-            UpdateExpression=f"SET s3_model_output_path = :path_val, training_start_time = :start_time_val, "
-            f"training_end_time = :end_time_val, train_state = :state_val",
+            UpdateExpression='SET s3_model_output_path = :path_val, training_start_time = :start_time_val, training_end_time = :end_time_val, train_state = :state_val',
             ExpressionAttributeValues={
                 ':path_val': s3_model_output_path,
                 ':start_time_val': training_start_time,
                 ':end_time_val': training_end_time,
-                ':state_val': train_state
-            }
+                ':state_val': train_state,
+            },
         ) 

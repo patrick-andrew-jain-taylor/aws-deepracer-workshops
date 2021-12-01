@@ -254,7 +254,7 @@ class BotCarController(object):
             self.stat_sec = [0]
         else:
             self.sec_map = [[[8.8, 13], [16.4, 21.6], [1.7, 6.6]], [[7.6, 11.4], [14.2, 18.9], [1.3, 5.6]]]    # 2019
-            self.stat_sec = []            
+            self.stat_sec = []
 #             self.sec_map = [[[8.1, 9.9], [11.8, 13.7], [18.8, 21.8], [0.8], [3.8, 6.1]], [[6.9, 8.1], [10.2, 11.5], [15.8, 18.6], [0.8], [3.2, 5]]]    # 2019
 #             self.stat_sec = [3]
 
@@ -288,11 +288,9 @@ class BotCarController(object):
         self.lanes_one_hot = np.zeros(len(lanes_list_np), dtype=bool)
         if is_inner:
             self.lanes_one_hot[0] = True
-            self.shapely_lane = lanes_list_np[self.lanes_one_hot][0]
         else:
             self.lanes_one_hot[1] = True
-            self.shapely_lane = lanes_list_np[self.lanes_one_hot][0]
-
+        self.shapely_lane = lanes_list_np[self.lanes_one_hot][0]
         # Change the lanes after certain time
         self.change_lane_freq_sec = 30 if self.car_section==self.stat_sec else 0
         self.reverse_dir = False
@@ -396,7 +394,7 @@ class DeepRacerRacetrackEnv(gym.Env):
 #                                         shape=(TRAINING_IMAGE_SIZE[1], TRAINING_IMAGE_SIZE[0], 2),
 #                                         dtype=np.uint8)
 #         })
-    
+
         self.observation_space = spaces.Dict({
 #                 'left_camera': spaces.Box(low=0, high=255,
 #                                         shape=(TRAINING_IMAGE_SIZE[1], TRAINING_IMAGE_SIZE[0], 3),
@@ -406,7 +404,7 @@ class DeepRacerRacetrackEnv(gym.Env):
                                         dtype=np.uint8),
                 'LIDAR': spaces.Box(low=0.15, high=1.0, shape=(64,))
         })
-    
+
         # Create the action space
         self.action_space = spaces.Box(low=np.array([-1, 0]), high=np.array([+1, +1]), dtype=np.float32)
 
@@ -475,10 +473,7 @@ class DeepRacerRacetrackEnv(gym.Env):
                                                              utils.SIMAPP_EVENT_ERROR_CODE_500))
 
             is_loop = np.all(waypoints[0,:] == waypoints[-1,:])
-            if 'inch' in self.world_name:
-                coef = 0.5
-            else:
-                coef = 0.6
+            coef = 0.5 if 'inch' in self.world_name else 0.6
             if is_loop:
                 self.center_line = LinearRing(waypoints[:,0:2])
                 self.inner_border = LinearRing(waypoints[:,2:4])
@@ -495,9 +490,9 @@ class DeepRacerRacetrackEnv(gym.Env):
                 self.road_poly = Polygon(np.vstack((self.outer_border, np.flipud(self.inner_border))))
             self.center_dists = [self.center_line.project(Point(p), normalized=True) for p in self.center_line.coords[:-1]] + [1.0]
             self.track_length = self.center_line.length
-            
+
             self.safe_angle = 30
-            
+
             # Queue used to maintain image consumption synchronicity
             self.image_queue_left_camera = queue.Queue(IMG_QUEUE_BUF_SIZE)
             rospy.Subscriber('/racecar/camera/zed/rgb/image_rect_color', sensor_image, self.callback_image_left_camera)
@@ -522,7 +517,7 @@ class DeepRacerRacetrackEnv(gym.Env):
                 self.start_ndist_map = [0.12, 0.34, 0.83]
             else:
                 self.start_ndist_map = [0.3, 0.6, 0.97]
-    
+
             self.start_ndist_index = 0
 #             self.start_ndist = 0.0
             self.start_ndist = self.start_ndist_map[0]
@@ -535,7 +530,7 @@ class DeepRacerRacetrackEnv(gym.Env):
 #             else:
 #                 self.alternate_dir = True
             print("Alternate direction is set to:", self.alternate_dir)
-            
+
             self.is_simulation_done = False
             self.steering_angle = 0
             self.speed = 0
@@ -551,13 +546,12 @@ class DeepRacerRacetrackEnv(gym.Env):
             self.simulation_start_time = 0
             self.allow_servo_step_signals = False
             self.checkpoint_num = 0
-            
+
             # Creating bot cars
             self.lanes_list_np_inner = np.array([self.left_lane, self.right_lane], dtype=object)
             self.lanes_list_np_outer = np.array([self.right_lane, self.left_lane], dtype=object)
             self.lanes_list_np_center = np.array([self.center_line, self.left_lane], dtype=object)
             self.lanes_list_np = np.array([self.left_lane, self.right_lane], dtype=object)
-
 #             self.bot_cars = [
 #                 BotCarController(car_id=1, start_dist=0.1, speed=0, lanes_list_np=self.lanes_list_np_inner, change_lane_freq_sec=0),
 #                 BotCarController(car_id=2, start_dist=2.9, speed=0, lanes_list_np=self.lanes_list_np_inner, change_lane_freq_sec=0),
@@ -572,14 +566,13 @@ class DeepRacerRacetrackEnv(gym.Env):
 #             # reinvent_base
 #             # inner_lane: 16.5382; outer_lane: 18.8032; ratio=1.137
 #             # inner lane: 0.1-2.8, 7.3-10.6, 13.9. outer lane: 0.1-2.8, 8.5-11.8, 15.6
-            
 #             # 36inch
 #             self.bot_cars = [
 #                 BotCarController(car_id=1, is_inner=True, speed=0.1, lanes_list_np=self.lanes_list_np),
 #                 BotCarController(car_id=2, is_inner=False, speed=0, lanes_list_np=self.lanes_list_np),
 #                 BotCarController(car_id=3, is_inner=True, speed=0.1, lanes_list_np=self.lanes_list_np)
 #             ]
-        
+
             if 'base' in self.world_name:
                 # base
                 self.bot_cars = [
@@ -608,7 +601,6 @@ class DeepRacerRacetrackEnv(gym.Env):
                     BotCarController(car_id=2, is_inner=False, speed=0.1, lanes_list_np=self.lanes_list_np, world_name=self.world_name),
                     BotCarController(car_id=3, is_inner=True, speed=0.08, lanes_list_np=self.lanes_list_np, world_name=self.world_name)
                 ]
-            
 #             print(self.bot_cars[0].shapely_lane.length)
 #             print(self.bot_cars[1].shapely_lane.length)
 

@@ -92,13 +92,18 @@ def download_all_logs(pathprefix, log_group, not_older_than=None, older_than=Non
 
 
 def describe_log_streams(client, log_group, next_token):
-    if next_token:
-        streams = client.describe_log_streams(logGroupName=log_group, orderBy='LastEventTime',
-                                              descending=True, nextToken=next_token)
-    else:
-        streams = client.describe_log_streams(logGroupName=log_group, orderBy='LastEventTime',
-                                              descending=True)
-    return streams
+    return (
+        client.describe_log_streams(
+            logGroupName=log_group,
+            orderBy='LastEventTime',
+            descending=True,
+            nextToken=next_token,
+        )
+        if next_token
+        else client.describe_log_streams(
+            logGroupName=log_group, orderBy='LastEventTime', descending=True
+        )
+    )
 
 
 def iso_to_timestamp(iso_date):

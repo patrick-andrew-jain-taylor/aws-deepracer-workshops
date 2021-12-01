@@ -58,8 +58,8 @@ def convert_to_pandas(data, wpts=None):
         print(stdout_)
     """        
     EPISODE_PER_ITER = 20
-    df_list = list()
-    
+    df_list = []
+
     #ignore the first two dummy values that coach throws at the start.
     for d in data[2:]:
         parts = d.rstrip().split(",")
@@ -79,18 +79,17 @@ def convert_to_pandas(data, wpts=None):
         closest_waypoint = int(parts[12])
         track_len = float(parts[13])
         tstamp = parts[14]
-        
+
         #desired_action = int(parts[10])
         #on_track = 0 if 'False' in parts[12] else 1
-        
+
         iteration = int(episode / EPISODE_PER_ITER) +1
         df_list.append((iteration, episode, steps, x, y, yaw, steer, throttle, action, reward, done, all_wheels_on_track, progress,
                         closest_waypoint, track_len, tstamp))
 
     header = ['iteration', 'episode', 'steps', 'x', 'y', 'yaw', 'steer', 'throttle', 'action', 'reward', 'done', 'on_track', 'progress', 'closest_waypoint', 'track_len', 'timestamp']
-    
-    df = pd.DataFrame(df_list, columns=header)
-    return df
+
+    return pd.DataFrame(df_list, columns=header)
 
 def episode_parser(df, action_map=True, episode_map=True):
     '''
@@ -119,13 +118,9 @@ def episode_parser(df, action_map=True, episode_map=True):
         except KeyError:
             action_map[action] = []
         action_map[action].append([x, y, reward])
-                
-    # top laps
-    total_rewards = {}
-    for x in episode_map.keys():
-        arr = episode_map[x]
-        total_rewards[x] = np.sum(arr[:,3])
 
+    # top laps
+    total_rewards = {x: np.sum(arr[:,3]) for x, arr in episode_map.items()}
     import operator
     top_idx = dict(sorted(total_rewards.items(), key=operator.itemgetter(1), reverse=True)[:])
     sorted_idx = list(top_idx.keys())
@@ -172,7 +167,7 @@ def plot_coords(ax, ob):
 
 
 def plot_bounds(ax, ob):
-    x, y = zip(*list((p.x, p.y) for p in ob.boundary))
+    x, y = zip(*[(p.x, p.y) for p in ob.boundary])
     ax.plot(x, y, '.', color='#000000', zorder=1)
 
 def plot_line(ax, ob):
@@ -194,14 +189,12 @@ def print_border(ax, waypoints, inner_border_waypoints, outer_border_waypoints):
 
 def get_closest_waypoint(x, y, waypoints):
     res = 0
-    index = 0
     min_distance = float('inf')
-    for row in waypoints:
+    for index, row in enumerate(waypoints):
         distance = math.sqrt((row[0] - x) * (row[0] - x) + (row[1] - y) * (row[1] - y))
         if distance < min_distance:
             min_distance = distance
             res = index
-        index = index + 1
     return res
     
 def plot_grid_world(episode_df, inner, outer, scale=1.0, plot=True):

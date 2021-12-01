@@ -522,19 +522,18 @@ class ResourceManager(object):
             error_code = e.response["Error"]["Code"]
             message = e.response["Error"]["Message"]
 
-            if error_code == "BucketAlreadyOwnedByYou":
-                pass
-            elif (
-                error_code == "OperationAborted" and "conflicting conditional operation" in message
+            if (
+                error_code == "BucketAlreadyOwnedByYou"
+                or error_code == "OperationAborted"
+                and "conflicting conditional operation" in message
             ):
-                # If this bucket is already being concurrently created, we don't need to create it again.
                 pass
             elif error_code == "TooManyBuckets":
                 # Succeed if the default bucket exists
                 s3.meta.client.head_bucket(Bucket=s3_bucket_name)
             else:
                 raise
-        
+
         s3_waiter = s3_client.get_waiter('bucket_exists')
         s3_waiter.wait(Bucket=s3_bucket_name)
         return s3_bucket_name
@@ -567,9 +566,7 @@ class Predictor(object):
             action_prob: action probability distribution
             sample_prob: sample probability distribution used for data split
         """
-        payload = {}
-        payload['request_type'] = "observation"
-        payload['observation'] = obs
+        payload = {'request_type': 'observation', 'observation': obs}
         response = self._realtime_predictor.predict(payload)
         action = response['action']
         action_prob = response['action_prob']
@@ -584,13 +581,9 @@ class Predictor(object):
         Returns:
             str: model id of the model being hosted
         """
-        payload = {}
-        payload['request_type'] = "model_id"
-        payload['observation'] = None
+        payload = {'request_type': 'model_id', 'observation': None}
         response = self._realtime_predictor.predict(payload)
-        model_id = response['model_id']
-
-        return model_id
+        return response['model_id']
 
     def delete_endpoint(self):
         """Delete the Sagemaker endpoint

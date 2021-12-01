@@ -88,11 +88,10 @@ def evaluation_worker(graph_manager, number_of_trials, local_model_directory):
             episodes_counter[current_checkpoint] += 1
 
         latest_checkpoint = data_store.get_latest_checkpoint()
-        if latest_checkpoint:
-            if latest_checkpoint > current_checkpoint:
-                data_store.get_a_particular_model(checkpoint_number=current_checkpoint+1)
-                graph_manager.restore_checkpoint()
-    
+        if latest_checkpoint and latest_checkpoint > current_checkpoint:
+            data_store.get_a_particular_model(checkpoint_number=current_checkpoint+1)
+            graph_manager.restore_checkpoint()
+
         if should_stop(local_model_directory):
             break
 

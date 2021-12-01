@@ -101,15 +101,14 @@ class SageClusterCommunicator():
         time_elapsed = 0
         while True:
             response = s3_client.list_objects(Bucket=self.s3_bucket, Prefix=self._get_s3_key(self.done_file_key))
-            if "Contents" not in response:
-                time.sleep(1)
-                time_elapsed += 1
-                if time_elapsed % 5 == 0:
-                    print("Waiting for SageMaker Redis server IP... Time elapsed: %s seconds" % time_elapsed)
-                if time_elapsed >= timeout:
-                    raise RuntimeError("Cannot retrieve IP of redis server running in SageMaker")
-            else:
+            if "Contents" in response:
                 return
+            time.sleep(1)
+            time_elapsed += 1
+            if time_elapsed % 5 == 0:
+                print("Waiting for SageMaker Redis server IP... Time elapsed: %s seconds" % time_elapsed)
+            if time_elapsed >= timeout:
+                raise RuntimeError("Cannot retrieve IP of redis server running in SageMaker")
 
     def download_file(self, s3_key, local_path):
         s3_client = self.get_client()

@@ -97,9 +97,11 @@ def run_cmd(cmd_args, change_working_directory="./", shell=False, executable=Non
         executable=executable,
         stdout=subprocess.PIPE
     )
-    result = list()
-    for line in iter(process.stdout.readline, b""):
-        result.append(line.decode("utf-8").rstrip())
+    result = [
+        line.decode("utf-8").rstrip()
+        for line in iter(process.stdout.readline, b"")
+    ]
+
     process.communicate()
     return process.returncode, result
 
@@ -112,9 +114,7 @@ def _is_path_exists(path):
 
     :param path: string - Operating system path
     """
-    if os.path.exists(path):
-        return True
-    return False
+    return bool(os.path.exists(path))
 
 def untar_simapp_output(sim_app_output_path):
     """

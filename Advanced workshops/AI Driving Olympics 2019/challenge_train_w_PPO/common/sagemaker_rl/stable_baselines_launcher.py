@@ -43,7 +43,7 @@ class SagemakerStableBaselinesLauncher():
         vr = VideoRecorder(env=self._env, path="{}/rl_out.mp4".format(video_path, str(MPI.COMM_WORLD.Get_rank())),
                            enabled=True)
         obs = self._env.reset()
-        for i in range(1000):
+        for _ in range(1000):
             action, _states = model.predict(obs)
             obs, rewards, dones, info = self._env.step(action)
             if dones:

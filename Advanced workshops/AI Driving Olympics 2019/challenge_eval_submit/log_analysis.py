@@ -43,10 +43,10 @@ def load_data(fname):
     return data
 
 def load_checkpoints(fname):
-    data_checkpoints = list()
+    data_checkpoints = []
     data_sim_trace_log = list()
-    data_sim = list()
-    
+    data_sim = []
+        
 
     with open(fname, 'r') as f:
         for line in f.readlines():
@@ -54,18 +54,18 @@ def load_checkpoints(fname):
             if "Loading checkpoint" in line:
                 parts = line.split("Loading checkpoint:")[1].split('\t')[0].split(",")
                 data_checkpoints.append(",".join(parts))
-                
+
                 # save if not the first one
                 data_sim_trace_log.append(data_sim)
 
                 # reset to collect
-                data_sim = list()
-                
+                data_sim = []
+
             if "SIM_TRACE_LOG" in line:
                 parts = line.split("SIM_TRACE_LOG:")[1].split('\t')[0].split(",")
                 data_sim.append(",".join(parts))
-              
-                
+
+
     return data_checkpoints, data_sim_trace_log[1:]
     
     
@@ -88,8 +88,8 @@ def convert_to_pandas(data, wpts=None):
         print(stdout_)
     """        
 
-    df_list = list()
-    
+    df_list = []
+
     #ignore the first two dummy values that coach throws at the start.
     for d in data[2:]:
         parts = d.rstrip().split(",")
@@ -109,17 +109,16 @@ def convert_to_pandas(data, wpts=None):
         closest_waypoint = int(parts[12])
         track_len = float(parts[13])
         tstamp = parts[14]
-        
+
         #desired_action = int(parts[10])
         #on_track = 0 if 'False' in parts[12] else 1
-        
+
         iteration = int(episode / EPISODE_PER_ITER) +1
         df_list.append((iteration, episode, steps, x, y, yaw, steer, throttle, action, reward, done, all_wheels_on_track, progress, closest_waypoint, track_len, tstamp))
 
     header = ['iteration', 'episode', 'steps', 'x', 'y', 'yaw', 'steer', 'throttle', 'action', 'reward', 'done', 'on_track', 'progress', 'closest_waypoint', 'track_len', 'timestamp']
-    
-    df = pd.DataFrame(df_list, columns=header)
-    return df
+
+    return pd.DataFrame(df_list, columns=header)
 
 def episode_parser(data, action_map=True, episode_map=True):
     '''
@@ -128,7 +127,7 @@ def episode_parser(data, action_map=True, episode_map=True):
     action_map = {} # Action => [x,y,reward] 
     episode_map = {} # Episode number => [x,y,action,reward] 
 
- 
+
     for d in data[:]:
         parts = d.rstrip().split("SIM_TRACE_LOG:")[-1].split(",")
         e = int(parts[0])
@@ -150,13 +149,9 @@ def episode_parser(data, action_map=True, episode_map=True):
         except KeyError:
             action_map[action] = []
         action_map[action].append([x, y, reward])
-                
-    # top laps
-    total_rewards = {}
-    for x in episode_map.keys():
-        arr = episode_map[x]
-        total_rewards[x] = np.sum(arr[:,3])
 
+    # top laps
+    total_rewards = {x: np.sum(arr[:,3]) for x, arr in episode_map.items()}
     import operator
     top_idx = dict(sorted(total_rewards.items(), key=operator.itemgetter(1), reverse=True)[:])
     sorted_idx = list(top_idx.keys())
@@ -203,7 +198,7 @@ def plot_coords(ax, ob):
 
 
 def plot_bounds(ax, ob):
-    x, y = zip(*list((p.x, p.y) for p in ob.boundary))
+    x, y = zip(*[(p.x, p.y) for p in ob.boundary])
     ax.plot(x, y, '.', color='#000000', zorder=1)
 
 def plot_line(ax, ob):
@@ -225,14 +220,12 @@ def print_border(ax, waypoints, inner_border_waypoints, outer_border_waypoints):
 
 def get_closest_waypoint(x, y, waypoints):
     res = 0
-    index = 0
     min_distance = float('inf')
-    for row in waypoints:
+    for index, row in enumerate(waypoints):
         distance = math.sqrt((row[0] - x) * (row[0] - x) + (row[1] - y) * (row[1] - y))
         if distance < min_distance:
             min_distance = distance
             res = index
-        index = index + 1
     return res
     
 def plot_grid_world(episode_df, inner, outer, scale=10.0, plot=True):

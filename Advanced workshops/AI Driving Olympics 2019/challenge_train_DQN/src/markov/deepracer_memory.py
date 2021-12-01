@@ -39,7 +39,7 @@ class DeepRacerRolloutBackEnd(MemoryBackend):
                                             collect before performing a training iteration
         '''
         # List of tuples containing the episode number and the episode data
-        self.data = list()
+        self.data = []
         # The episode number of the last episode produced by the rollout worker
         self.last_episode_num = 0
         # The max number of episodes to collect before performing a training iteration

@@ -480,7 +480,7 @@ class ModelManager():
                 self._jsonify()
             )
             return self._jsonify()
-    
+
         # Try and fetch updated SageMaker Training Job Status
         sm_eval_job_info = {}
         for i in range(3):
@@ -508,7 +508,7 @@ class ModelManager():
                     )
                     time.sleep(2)
                     return self._jsonify()
-        
+
 
         eval_state = sm_eval_job_info.get('TrainingJobStatus', 'Pending')
         if eval_state == 'Completed':
@@ -517,7 +517,7 @@ class ModelManager():
             if self.local_mode:
                 rgx = re.compile('average loss = ([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?).*$', re.M)
                 eval_score_rgx = rgx.findall(self.log_output)
-        
+
                 if len(eval_score_rgx) == 0:
                     logger.warning("No eval score available from vw job log.")
                 else:
@@ -535,8 +535,7 @@ class ModelManager():
                     attempts += 1
             self.model_record._eval_state = eval_state
             self.model_record.add_model_eval_scores(eval_score)
-            self.model_db_client.update_model_eval_job_state(self._jsonify())
         else:
             # update eval state via ddb client
             self.model_record.update_eval_job_state(eval_state)
-            self.model_db_client.update_model_eval_job_state(self._jsonify())
+        self.model_db_client.update_model_eval_job_state(self._jsonify())
